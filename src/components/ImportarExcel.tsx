@@ -150,9 +150,10 @@ export default function ImportarExcel({ onImportar, onCerrar, mostrar }: Importa
       setArchivo(null);
       onCerrar();
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error procesando archivo:', err);
-      setError(err.message || 'Error al procesar el archivo');
+      const errorMessage = err instanceof Error ? err.message : 'Error al procesar el archivo';
+      setError(errorMessage);
     } finally {
       setProcesando(false);
     }
@@ -261,10 +262,10 @@ export default function ImportarExcel({ onImportar, onCerrar, mostrar }: Importa
                 <div>
                   <h4 className="font-semibold text-yellow-800">Importante:</h4>
                   <ul className="text-yellow-700 text-sm mt-1 space-y-1">
-                    <li>• Los campos "codigo" y "descripcion" son obligatorios</li>
+                    <li>• Los campos &quot;codigo&quot; y &quot;descripcion&quot; son obligatorios</li>
                     <li>• Usar <strong>punto y coma (;)</strong> como separador</li>
                     <li>• Los números decimales usar <strong>coma (,)</strong> no punto (.)</li>
-                    <li>• El "estimadoMeses" se calcula automáticamente</li>
+                    <li>• El &quot;estimadoMeses&quot; se calcula automáticamente</li>
                     <li>• Se ignoran líneas vacías y metadatos</li>
                     <li>• Compatible con tu formato actual de PlantillaFito.csv</li>
                     <li>• <strong>Caracteres españoles (ñ, é, í, ó, ú) son soportados automáticamente</strong></li>

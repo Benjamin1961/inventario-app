@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Producto } from '@/types/producto';
-import { obtenerTodosLosProductos, buscarPorCodigo, generarReportePorMeses } from '@/data/productos';
+import { obtenerTodosLosProductos } from '@/data/productos';
 import FormularioProducto from './FormularioProducto';
 import ImportarExcel from './ImportarExcel';
 import EditarProducto from './EditarProducto';

@@ -1,11 +1,5 @@
 import { Producto } from '@/types/producto';
 
-// Función para calcular estimado de meses
-const calcularEstimadoMeses = (existencia: number, consumoMensual: number): number => {
-  if (consumoMensual === 0) return 999; // Valor alto para productos sin consumo
-  return Math.ceil(existencia / consumoMensual);
-};
-
 export const productosEjemplo: Producto[] = [
   // Base de datos vacía para comenzar limpio
 ];
