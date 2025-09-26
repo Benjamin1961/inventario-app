@@ -40,24 +40,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Verificar si hay sesión guardada al cargar la aplicación
   useEffect(() => {
+    console.log('🚀 AuthContext: Verificando sesión guardada...');
     const usuarioGuardado = localStorage.getItem('inventario_usuario');
+    console.log('💾 AuthContext: Usuario en localStorage:', usuarioGuardado);
+    
     if (usuarioGuardado) {
       try {
         const usuarioData = JSON.parse(usuarioGuardado);
+        console.log('👤 AuthContext: Datos parseados:', usuarioData);
         setUsuario(usuarioData);
+        console.log('✅ AuthContext: Usuario restaurado desde localStorage');
       } catch (error) {
-        console.error('Error al cargar usuario guardado:', error);
+        console.error('💥 AuthContext: Error al cargar usuario guardado:', error);
         localStorage.removeItem('inventario_usuario');
       }
+    } else {
+      console.log('❌ AuthContext: No hay usuario guardado');
     }
     setIsLoading(false);
+    console.log('🏁 AuthContext: Inicialización completada');
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    console.log('🔐 AuthContext: Iniciando login para:', email);
     
     try {
       const usuarioAutenticado = await autenticarUsuario(email, password);
+      console.log('🔐 AuthContext: Resultado autenticación:', usuarioAutenticado ? 'Exitosa' : 'Falló');
       
       if (usuarioAutenticado) {
         // Convertir el usuario completo a la versión simplificada para el contexto
@@ -69,16 +79,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           requiere_cambio_password: usuarioAutenticado.debe_cambiar_password
         };
         
+        console.log('👤 AuthContext: Usuario simplificado:', usuarioSimplificado);
+        console.log('💾 AuthContext: Guardando en localStorage...');
+        
         setUsuario(usuarioSimplificado);
         localStorage.setItem('inventario_usuario', JSON.stringify(usuarioSimplificado));
+        
+        console.log('✅ AuthContext: Login completado exitosamente');
         setIsLoading(false);
         return true;
       }
       
+      console.log('❌ AuthContext: Autenticación falló');
       setIsLoading(false);
       return false;
     } catch (error) {
-      console.error('Error en autenticación:', error);
+      console.error('💥 AuthContext: Error en login:', error);
       setIsLoading(false);
       return false;
     }
