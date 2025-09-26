@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Producto } from '@/types/producto';
-import { obtenerTodosLosProductos } from '@/data/productos';
+import { obtenerTodosLosProductos, buscarPorCodigo, generarReportePorMeses, agregarProducto, actualizarProducto, eliminarProducto } from '@/data/productos';
 import FormularioProducto from './FormularioProducto';
 import ImportarExcel from './ImportarExcel';
 import EditarProducto from './EditarProducto';
@@ -20,21 +20,39 @@ export default function InventarioApp() {
   const [mostrarImportarExcel, setMostrarImportarExcel] = useState(false);
   const [mostrarEditarProducto, setMostrarEditarProducto] = useState(false);
   const [productoAEditar, setProductoAEditar] = useState<Producto | null>(null);
+  const [cargando, setCargando] = useState(true);
   
   const { usuario, logout } = useAuth();
 
+  // Función para cargar productos desde la base de datos
+  const cargarProductos = async () => {
+    setCargando(true);
+    try {
+      const productosIniciales = await obtenerTodosLosProductos();
+      setProductos(productosIniciales);
+      setProductosOriginales(productosIniciales);
+    } catch (error) {
+      console.error('Error cargando productos:', error);
+    } finally {
+      setCargando(false);
+    }
+  };
+
   useEffect(() => {
-    const productosIniciales = obtenerTodosLosProductos();
-    setProductos(productosIniciales);
-    setProductosOriginales(productosIniciales);
+    cargarProductos();
   }, []);
 
-  const realizarBusqueda = () => {
+  const realizarBusqueda = async () => {
     if (codigoBusqueda.trim()) {
-      const resultados = productosOriginales.filter(producto => 
-        producto.codigo.toLowerCase().includes(codigoBusqueda.toLowerCase())
-      );
-      setProductos(resultados);
+      setCargando(true);
+      try {
+        const resultados = await buscarPorCodigo(codigoBusqueda);
+        setProductos(resultados);
+      } catch (error) {
+        console.error('Error en búsqueda:', error);
+      } finally {
+        setCargando(false);
+      }
     } else {
       setProductos(productosOriginales);
     }
@@ -42,11 +60,18 @@ export default function InventarioApp() {
     setCodigoBusqueda('');
   };
 
-  const aplicarFiltroMeses = (meses: number) => {
-    const productosFiltrasos = productosOriginales.filter(producto => producto.estimadoMeses <= meses);
-    setProductos(productosFiltrasos);
-    setFiltroMeses(meses);
-    setMostrarReportes(false);
+  const aplicarFiltroMeses = async (meses: number) => {
+    setCargando(true);
+    try {
+      const productosFiltrasos = await generarReportePorMeses(meses);
+      setProductos(productosFiltrasos);
+      setFiltroMeses(meses);
+      setMostrarReportes(false);
+    } catch (error) {
+      console.error('Error aplicando filtro:', error);
+    } finally {
+      setCargando(false);
+    }
   };
 
   const limpiarFiltros = () => {
@@ -54,31 +79,42 @@ export default function InventarioApp() {
     setFiltroMeses(null);
   };
 
-  const agregarProducto = (nuevoProducto: Producto) => {
-    // Verificar si la combinación código + codigoIdentificacion ya existe
-    const existeCombinacion = productosOriginales.some(p => 
-      p.codigo === nuevoProducto.codigo && p.codigoIdentificacion === nuevoProducto.codigoIdentificacion
-    );
-    
-    if (existeCombinacion) {
-      alert(`Ya existe un producto con el código ${nuevoProducto.codigo} y código de identificación ${nuevoProducto.codigoIdentificacion}`);
-      return;
+  const manejarAgregarProducto = async (nuevoProducto: Omit<Producto, 'id'>) => {
+    setCargando(true);
+    try {
+      const productoAgregado = await agregarProducto(nuevoProducto);
+      if (productoAgregado) {
+        await cargarProductos(); // Recargar todos los productos
+        alert('Producto agregado exitosamente');
+      } else {
+        alert('Error al agregar el producto');
+      }
+    } catch (error) {
+      console.error('Error agregando producto:', error);
+      alert('Error al agregar el producto');
+    } finally {
+      setCargando(false);
     }
-
-    const nuevosProductos = [...productosOriginales, nuevoProducto];
-    setProductosOriginales(nuevosProductos);
-    setProductos(nuevosProductos);
   };
 
-  const editarProducto = (productoEditado: Producto) => {
-    const nuevosProductos = productosOriginales.map(p => 
-      p.codigo === productoAEditar?.codigo && p.codigoIdentificacion === productoAEditar?.codigoIdentificacion 
-        ? productoEditado 
-        : p
-    );
-    setProductosOriginales(nuevosProductos);
-    setProductos(nuevosProductos);
-    setProductoAEditar(null);
+  const manejarEditarProducto = async (productoEditado: Producto) => {
+    if (!productoAEditar?.id) return;
+    
+    setCargando(true);
+    try {
+      const productoActualizado = await actualizarProducto(productoAEditar.id, productoEditado);
+      if (productoActualizado) {
+        await cargarProductos(); // Recargar todos los productos
+        alert('Producto actualizado exitosamente');
+      } else {
+        alert('Error al actualizar el producto');
+      }
+    } catch (error) {
+      console.error('Error actualizando producto:', error);
+      alert('Error al actualizar el producto');
+    } finally {
+      setCargando(false);
+    }
   };
 
   const abrirEditorProducto = (producto: Producto) => {
@@ -91,30 +127,42 @@ export default function InventarioApp() {
     setProductoAEditar(null);
   };
 
-  const importarProductos = (productosImportados: Producto[]) => {
-    // Filtrar productos que no tengan combinaciones código+codigoIdentificacion duplicadas
-    const productosNuevos = productosImportados.filter(importado => 
-      !productosOriginales.some(existente => 
-        existente.codigo === importado.codigo && 
-        existente.codigoIdentificacion === importado.codigoIdentificacion
-      )
-    );
+  const importarProductos = async (productosImportados: Omit<Producto, 'id'>[]) => {
+    setCargando(true);
+    let productosAgregados = 0;
+    let productosDuplicados = 0;
 
-    if (productosNuevos.length === 0) {
-      alert('Todos los productos ya existen en el sistema');
-      return;
+    try {
+      for (const producto of productosImportados) {
+        try {
+          const productoAgregado = await agregarProducto(producto);
+          if (productoAgregado) {
+            productosAgregados++;
+          } else {
+            productosDuplicados++;
+          }
+        } catch (error) {
+          console.error('Error agregando producto:', error);
+          productosDuplicados++;
+        }
+      }
+
+      if (productosAgregados === 0) {
+        alert('No se pudo agregar ningún producto. Posiblemente ya existen en el sistema.');
+      } else if (productosDuplicados > 0) {
+        alert(`Se importaron ${productosAgregados} productos exitosamente. ${productosDuplicados} productos fueron omitidos.`);
+      } else {
+        alert(`Se importaron ${productosAgregados} productos exitosamente.`);
+      }
+
+      // Recargar todos los productos después de la importación
+      await cargarProductos();
+    } catch (error) {
+      console.error('Error en importación:', error);
+      alert('Error durante la importación de productos');
+    } finally {
+      setCargando(false);
     }
-
-    if (productosNuevos.length < productosImportados.length) {
-      const duplicados = productosImportados.length - productosNuevos.length;
-      alert(`Se importaron ${productosNuevos.length} productos. ${duplicados} productos fueron omitidos por tener combinaciones código+ID duplicadas.`);
-    } else {
-      alert(`Se importaron ${productosNuevos.length} productos exitosamente.`);
-    }
-
-    const nuevosProductos = [...productosOriginales, ...productosNuevos];
-    setProductosOriginales(nuevosProductos);
-    setProductos(nuevosProductos);
   };
 
   const obtenerColorEstado = (meses: number) => {
@@ -209,13 +257,51 @@ export default function InventarioApp() {
         </div>
 
         {/* Lista de Productos */}
+        {cargando ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Cargando productos...</span>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {productos.map((producto, index) => (
             <div key={`${producto.codigo}-${index}`} className="bg-white rounded-lg shadow-md overflow-hidden">
               {/* Imagen del producto */}
-              <div className="h-48 bg-gray-200 flex items-center justify-center">
-                <Package className="h-16 w-16 text-gray-400" />
-                <span className="ml-2 text-sm text-gray-500">Sin imagen</span>
+              <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden relative">
+                {producto.imagePath && producto.imagePath.trim() !== '' ? (
+                  <img 
+                    src={producto.imagePath} 
+                    alt={producto.descripcion}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Reemplazar con placeholder si la imagen falla
+                      const img = e.currentTarget;
+                      const container = img.parentElement;
+                      if (container && img) {
+                        img.style.display = 'none';
+                        const placeholder = container.querySelector('.image-placeholder');
+                        if (!placeholder) {
+                          const placeholderDiv = document.createElement('div');
+                          placeholderDiv.className = 'image-placeholder flex items-center justify-center w-full h-full absolute inset-0';
+                          placeholderDiv.innerHTML = `
+                            <div class="flex flex-col items-center">
+                              <svg class="h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                              </svg>
+                              <span class="mt-2 text-xs text-gray-500 text-center">Imagen no disponible</span>
+                            </div>
+                          `;
+                          container.appendChild(placeholderDiv);
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <Package className="h-16 w-16 text-gray-400" />
+                    <span className="mt-2 text-sm text-gray-500">Sin imagen</span>
+                  </div>
+                )}
               </div>
               
               <div className="p-4">
@@ -281,8 +367,9 @@ export default function InventarioApp() {
             </div>
           ))}
         </div>
+        )}
 
-        {productos.length === 0 && (
+        {!cargando && productos.length === 0 && (
           <div className="text-center py-12">
             <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 text-lg">No se encontraron productos</p>
@@ -369,7 +456,7 @@ export default function InventarioApp() {
 
       {/* Formulario para agregar productos */}
       <FormularioProducto
-        onAgregar={agregarProducto}
+        onAgregar={manejarAgregarProducto}
         onCerrar={() => setMostrarFormulario(false)}
         mostrar={mostrarFormulario}
       />
@@ -384,7 +471,7 @@ export default function InventarioApp() {
       {/* Editar Producto */}
       <EditarProducto
         producto={productoAEditar}
-        onGuardar={editarProducto}
+        onGuardar={manejarEditarProducto}
         onCerrar={cerrarEditorProducto}
         mostrar={mostrarEditarProducto}
       />

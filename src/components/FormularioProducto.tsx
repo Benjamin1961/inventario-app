@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Producto } from '@/types/producto';
-import { X, Plus } from 'lucide-react';
+import { subirImagen } from '@/data/productos';
+import { X, Plus, Upload, Image } from 'lucide-react';
 
 interface FormularioProductoProps {
-  onAgregar: (producto: Producto) => void;
+  onAgregar: (producto: Omit<Producto, 'id'>) => void;
   onCerrar: () => void;
   mostrar: boolean;
 }
@@ -28,6 +29,45 @@ export default function FormularioProducto({ onAgregar, onCerrar, mostrar }: For
     proveedor: ''
   });
 
+  const [archivoImagen, setArchivoImagen] = useState<File | null>(null);
+  const [previsualizacionImagen, setPrevisualizacionImagen] = useState<string>('');
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+
+  // Manejar selección de imagen
+  const manejarSeleccionImagen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    if (archivo) {
+      // Validar tipo de archivo
+      if (!archivo.type.startsWith('image/')) {
+        alert('Por favor selecciona solo archivos de imagen');
+        return;
+      }
+      
+      // Validar tamaño (5MB máximo)
+      if (archivo.size > 5 * 1024 * 1024) {
+        alert('La imagen debe ser menor a 5MB');
+        return;
+      }
+
+      setArchivoImagen(archivo);
+      
+      // Crear previsualización
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPrevisualizacionImagen(e.target?.result as string);
+      };
+      reader.readAsDataURL(archivo);
+    }
+  };
+
+  // Limpiar imagen seleccionada
+  const limpiarImagen = () => {
+    setArchivoImagen(null);
+    setPrevisualizacionImagen('');
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (input) input.value = '';
+  };
+
   const calcularEstimadoMeses = (existencia: number, consumoMensual: number): number => {
     if (consumoMensual === 0) return 999;
     return Math.ceil(existencia / consumoMensual);
@@ -37,7 +77,7 @@ export default function FormularioProducto({ onAgregar, onCerrar, mostrar }: For
     setProducto(prev => ({ ...prev, [campo]: valor }));
   };
 
-  const manejarEnvio = (e: React.FormEvent) => {
+  const manejarEnvio = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!producto.codigo || !producto.descripcion) {
@@ -45,45 +85,69 @@ export default function FormularioProducto({ onAgregar, onCerrar, mostrar }: For
       return;
     }
 
-    const nuevoProducto: Producto = {
-      codigo: producto.codigo!,
-      descripcion: producto.descripcion!,
-      partida: producto.partida || '',
-      unidad: producto.unidad || 'Unidad',
-      bodega: producto.bodega || 'Bodega General',
-      existencia: Number(producto.existencia) || 0,
-      consumoMensual: Number(producto.consumoMensual) || 0,
-      estimadoMeses: calcularEstimadoMeses(Number(producto.existencia) || 0, Number(producto.consumoMensual) || 0),
-      codigoClasificacion: producto.codigoClasificacion || '',
-      codigoIdentificacion: producto.codigoIdentificacion || '',
-      numeroProcedimiento: producto.numeroProcedimiento || '',
-      tipoProcedimiento: producto.tipoProcedimiento || 'Licitación Directa',
-      imagePath: producto.imagePath || '',
-      categoria: producto.categoria || '',
-      proveedor: producto.proveedor || ''
-    };
+    setSubiendoImagen(true);
 
-    onAgregar(nuevoProducto);
-    
-    // Limpiar formulario
-    setProducto({
-      codigo: '',
-      descripcion: '',
-      partida: '',
-      unidad: '',
-      bodega: '',
-      existencia: 0,
-      consumoMensual: 0,
-      codigoClasificacion: '',
-      codigoIdentificacion: '',
-      numeroProcedimiento: '',
-      tipoProcedimiento: 'Licitación Directa',
-      imagePath: '',
-      categoria: '',
-      proveedor: ''
-    });
-    
-    onCerrar();
+    try {
+      let urlImagen = '';
+      
+      // Subir imagen si se seleccionó una
+      if (archivoImagen) {
+        const resultado = await subirImagen(archivoImagen, producto.codigo!);
+        if (resultado) {
+          urlImagen = resultado;
+        } else {
+          alert('Error al subir la imagen, pero se guardará el producto sin imagen');
+        }
+      }
+
+      const nuevoProducto: Omit<Producto, 'id'> = {
+        codigo: producto.codigo!,
+        descripcion: producto.descripcion!,
+        partida: producto.partida || '',
+        unidad: producto.unidad || 'Unidad',
+        bodega: producto.bodega || 'Bodega General',
+        existencia: Number(producto.existencia) || 0,
+        consumoMensual: Number(producto.consumoMensual) || 0,
+        estimadoMeses: calcularEstimadoMeses(Number(producto.existencia) || 0, Number(producto.consumoMensual) || 0),
+        codigoClasificacion: producto.codigoClasificacion || '',
+        codigoIdentificacion: producto.codigoIdentificacion || '',
+        numeroProcedimiento: producto.numeroProcedimiento || '',
+        tipoProcedimiento: producto.tipoProcedimiento || 'Licitación Directa',
+        imagePath: urlImagen,
+        categoria: producto.categoria || '',
+        proveedor: producto.proveedor || ''
+      };
+
+      onAgregar(nuevoProducto);
+      
+      // Limpiar formulario
+      setProducto({
+        codigo: '',
+        descripcion: '',
+        partida: '',
+        unidad: '',
+        bodega: '',
+        existencia: 0,
+        consumoMensual: 0,
+        codigoClasificacion: '',
+        codigoIdentificacion: '',
+        numeroProcedimiento: '',
+        tipoProcedimiento: 'Licitación Directa',
+        imagePath: '',
+        categoria: '',
+        proveedor: ''
+      });
+
+      // Limpiar imagen
+      limpiarImagen();
+      
+      onCerrar();
+    } catch (error) {
+      console.error('Error al procesar producto:', error);
+      alert('Error al guardar el producto');
+    } finally {
+      setSubiendoImagen(false);
+    }
   };
 
   if (!mostrar) return null;
@@ -294,6 +358,41 @@ export default function FormularioProducto({ onAgregar, onCerrar, mostrar }: For
                 placeholder="Ej: Distribuidora XYZ SA"
               />
             </div>
+
+            {/* Imagen del Producto */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Image className="inline h-4 w-4 mr-1" />
+                Imagen del Producto
+              </label>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={manejarSeleccionImagen}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {previsualizacionImagen && (
+                  <div className="relative inline-block">
+                    <img
+                      src={previsualizacionImagen}
+                      alt="Vista previa"
+                      className="h-32 w-32 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={limpiarImagen}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center hover:bg-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                <p className="text-sm text-gray-500">
+                  Formato: JPG, PNG, GIF. Tamaño máximo: 5MB
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-4 justify-end mt-6">
@@ -306,10 +405,20 @@ export default function FormularioProducto({ onAgregar, onCerrar, mostrar }: For
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              disabled={subiendoImagen}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
-              <Plus className="h-4 w-4" />
-              Agregar Producto
+              {subiendoImagen ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Agregar Producto
+                </>
+              )}
             </button>
           </div>
         </form>

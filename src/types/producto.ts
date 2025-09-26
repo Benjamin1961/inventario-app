@@ -1,4 +1,5 @@
 export interface Producto {
+  id?: number; // ID de la base de datos (opcional para creación)
   codigo: string; // Llave de búsqueda principal
   descripcion: string;
   partida: string;
@@ -15,6 +16,8 @@ export interface Producto {
   // Campos adicionales para completar los 15 campos mencionados
   categoria?: string;
   proveedor?: string;
+  created_at?: string; // Timestamp de creación
+  updated_at?: string; // Timestamp de actualización
 }
 
 export interface FiltroReporte {

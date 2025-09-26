@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Producto } from '@/types/producto';
-import { X, Save, AlertCircle } from 'lucide-react';
+import { X, Save, AlertCircle, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { subirImagen, eliminarImagen } from '@/data/productos';
 
 interface EditarProductoProps {
   producto: Producto | null;
@@ -31,6 +32,9 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
   });
 
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
+  const [imagenSeleccionada, setImagenSeleccionada] = useState<File | null>(null);
+  const [previsualizacion, setPrevisualizacion] = useState<string>('');
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
 
   // Función para calcular estimado de meses
   const calcularEstimadoMeses = (existencia: number, consumoMensual: number): number => {
@@ -43,6 +47,8 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
     if (producto && mostrar) {
       setFormData(producto);
       setErrores({});
+      setImagenSeleccionada(null);
+      setPrevisualizacion('');
     }
   }, [producto, mostrar]);
 
@@ -71,6 +77,51 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
     }
   };
 
+  const manejarSeleccionImagen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+
+    // Validaciones
+    if (!archivo.type.startsWith('image/')) {
+      setErrores(prev => ({ ...prev, imagen: 'Por favor selecciona una imagen válida' }));
+      return;
+    }
+
+    if (archivo.size > 5 * 1024 * 1024) { // 5MB
+      setErrores(prev => ({ ...prev, imagen: 'La imagen debe ser menor a 5MB' }));
+      return;
+    }
+
+    // Limpiar error previo
+    setErrores(prev => ({ ...prev, imagen: '' }));
+    
+    setImagenSeleccionada(archivo);
+    
+    // Crear previsualización
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setPrevisualizacion(e.target.result as string);
+      }
+    };
+    reader.readAsDataURL(archivo);
+  };
+
+  const eliminarImagenActual = async () => {
+    if (formData.imagePath) {
+      try {
+        setSubiendoImagen(true);
+        await eliminarImagen(formData.imagePath);
+        setFormData(prev => ({ ...prev, imagePath: '' }));
+      } catch (error) {
+        console.error('Error al eliminar imagen:', error);
+        setErrores(prev => ({ ...prev, imagen: 'Error al eliminar la imagen actual' }));
+      } finally {
+        setSubiendoImagen(false);
+      }
+    }
+  };
+
   const validarFormulario = (): boolean => {
     const nuevosErrores: { [key: string]: string } = {};
 
@@ -94,17 +145,43 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
     return Object.keys(nuevosErrores).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validarFormulario()) {
-      onGuardar(formData);
-      onCerrar();
+      try {
+        setSubiendoImagen(true);
+        let productoFinal = { ...formData };
+
+        // Si hay una nueva imagen seleccionada, subirla
+        if (imagenSeleccionada) {
+          // Eliminar imagen anterior si existe
+          if (formData.imagePath) {
+            await eliminarImagen(formData.imagePath);
+          }
+          
+          // Subir nueva imagen
+          const rutaImagen = await subirImagen(imagenSeleccionada, formData.codigo);
+          if (rutaImagen) {
+            productoFinal.imagePath = rutaImagen;
+          }
+        }
+
+        onGuardar(productoFinal);
+        onCerrar();
+      } catch (error) {
+        console.error('Error al procesar imagen:', error);
+        setErrores(prev => ({ ...prev, imagen: 'Error al procesar la imagen' }));
+      } finally {
+        setSubiendoImagen(false);
+      }
     }
   };
 
   const handleCerrar = () => {
     setErrores({});
+    setImagenSeleccionada(null);
+    setPrevisualizacion('');
     onCerrar();
   };
 
@@ -389,16 +466,83 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ruta de Imagen
+                  Imagen del Producto
                 </label>
-                <input
-                  type="text"
-                  name="imagePath"
-                  value={formData.imagePath}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="URL o ruta de la imagen (opcional)"
-                />
+                
+                {/* Imagen actual */}
+                {formData.imagePath && !previsualizacion && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">Imagen actual:</p>
+                    <div className="relative inline-block">
+                      <img 
+                        src={formData.imagePath} 
+                        alt="Imagen actual del producto"
+                        className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          img.style.display = 'none';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={eliminarImagenActual}
+                        disabled={subiendoImagen}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors disabled:opacity-50"
+                        title="Eliminar imagen actual"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nueva imagen seleccionada */}
+                {previsualizacion && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">Nueva imagen:</p>
+                    <img 
+                      src={previsualizacion} 
+                      alt="Previsualización" 
+                      className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                    />
+                  </div>
+                )}
+
+                {/* Campo de selección de archivo */}
+                <div className="flex items-center gap-4">
+                  <label className="flex-1">
+                    <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                      <div className="text-center">
+                        <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-600">
+                          {imagenSeleccionada ? imagenSeleccionada.name : 'Seleccionar nueva imagen'}
+                        </p>
+                        <p className="text-xs text-gray-400">PNG, JPG, GIF (máx. 5MB)</p>
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={manejarSeleccionImagen}
+                      className="hidden"
+                      disabled={subiendoImagen}
+                    />
+                  </label>
+                </div>
+
+                {errores.imagen && (
+                  <p className="text-red-600 text-sm mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errores.imagen}
+                  </p>
+                )}
+
+                {subiendoImagen && (
+                  <div className="flex items-center gap-2 mt-2 text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span className="text-sm">Procesando imagen...</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -414,10 +558,20 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              disabled={subiendoImagen}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="h-4 w-4" />
-              Guardar Cambios
+              {subiendoImagen ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Guardar Cambios
+                </>
+              )}
             </button>
           </div>
         </form>
