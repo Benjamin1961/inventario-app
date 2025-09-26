@@ -27,7 +27,7 @@ export default function LoginForm() {
   };
 
   const credencialesPrueba = [
-    { email: 'admin@almacen.cr', password: 'Admin2024!', rol: 'Administrador' },
+    { email: 'admin@almacen.cr', password: 'Admin123!', rol: 'Administrador' },
   ];
 
   const completarCredenciales = (email: string, password: string) => {
