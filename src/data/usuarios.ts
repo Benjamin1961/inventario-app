@@ -123,10 +123,14 @@ export const obtenerUsuarios = async (): Promise<Usuario[]> => {
 // Autenticar usuario
 export const autenticarUsuario = async (email: string, password: string): Promise<Usuario | null> => {
   try {
+    console.log('🔐 Iniciando autenticación para:', email);
+    
     // Validar formato de email
     if (!validarEmail(email)) {
+      console.log('❌ Email inválido:', email);
       return null;
     }
+    console.log('✅ Email válido');
 
     // Buscar usuario en la base de datos
     const { data: usuario, error } = await supabase
@@ -137,24 +141,35 @@ export const autenticarUsuario = async (email: string, password: string): Promis
       .single();
 
     if (error || !usuario) {
+      console.log('❌ Usuario no encontrado o inactivo:', error);
       return null;
     }
+    console.log('✅ Usuario encontrado:', { id: usuario.id, email: usuario.email, activo: usuario.activo });
 
     // Verificar contraseña
+    console.log('🔍 Verificando contraseña...');
+    console.log('Hash en BD:', usuario.password_hash);
+    
     const passwordValida = await verificarPassword(password, usuario.password_hash);
+    console.log('Resultado verificación:', passwordValida);
+    
     if (!passwordValida) {
+      console.log('❌ Contraseña incorrecta');
       return null;
     }
+    console.log('✅ Contraseña correcta');
 
     // Actualizar último login
+    console.log('📝 Actualizando último login...');
     await supabase
       .from('usuarios')
       .update({ ultimo_login: new Date().toISOString() })
       .eq('id', usuario.id);
 
+    console.log('🎉 Autenticación exitosa');
     return usuario;
   } catch (error) {
-    console.error('Error en autenticación:', error);
+    console.error('💥 Error en autenticación:', error);
     return null;
   }
 };

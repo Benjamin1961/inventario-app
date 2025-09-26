@@ -38,22 +38,22 @@ export default function LoginForm() {
           <p className="text-gray-600">Iniciar sesión para continuar</p>
         </div>
 
-        {/* Form */}
+        {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email corporativo
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Correo electrónico
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="usuario@almacen.cr"
-                autoComplete="off"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="usuario@inventario.com"
                 required
               />
             </div>
@@ -61,18 +61,18 @@ export default function LoginForm() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Contraseña
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
+                id="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="Ingresa tu contraseña"
-                autoComplete="off"
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="••••••••"
                 required
               />
               <button
@@ -112,6 +112,36 @@ export default function LoginForm() {
             )}
           </button>
         </form>
+
+        {/* Credenciales del sistema */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">� Administrador inicial:</h3>
+          <div className="space-y-2">
+            {credencialesPrueba.map((cred, index) => (
+              <div
+                key={index}
+                className="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => completarCredenciales(cred.email, cred.password)}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">{cred.rol}</p>
+                    <p className="text-xs text-gray-500">{cred.email}</p>
+                  </div>
+                  <div className="text-xs text-blue-600 font-medium">Click para usar</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-700">
+              <strong>⚡ Sistema Profesional:</strong><br/>
+              • Dominio: @almacen.cr<br/>
+              • Primera vez: cambiar contraseña<br/>
+              • Gestión completa de usuarios
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

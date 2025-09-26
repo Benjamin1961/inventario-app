@@ -11,6 +11,7 @@ import {
   type Usuario,
   type CrearUsuarioData 
 } from '../data/usuarios';
+import { limpiarTodosLosProductos } from '../data/productos';
 
 interface PanelUsuariosProps {
   onClose: () => void;
@@ -135,6 +136,24 @@ const PanelUsuarios = ({ onClose }: PanelUsuariosProps) => {
     }
   };
 
+  const manejarLimpiarProductos = async () => {
+    if (window.confirm('⚠️ PELIGRO: ¿Estás seguro de eliminar TODOS los productos y sus imágenes? Esta acción no se puede deshacer.')) {
+      if (window.confirm('🚨 CONFIRMACIÓN FINAL: Se eliminarán todos los productos permanentemente. ¿Continuar?')) {
+        try {
+          const exito = await limpiarTodosLosProductos();
+          if (exito) {
+            mostrarMensaje('success', '🧹 Todos los productos han sido eliminados exitosamente');
+          } else {
+            mostrarMensaje('error', 'Error al limpiar productos');
+          }
+        } catch (error) {
+          console.error('Error limpiando productos:', error);
+          mostrarMensaje('error', 'Error al limpiar productos');
+        }
+      }
+    }
+  };
+
   // Solo administradores pueden ver este panel
   if (usuarioActual?.rol !== 'admin') {
     return (
@@ -164,6 +183,13 @@ const PanelUsuarios = ({ onClose }: PanelUsuariosProps) => {
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               {mostrarFormulario ? 'Cancelar' : 'Nuevo Usuario'}
+            </button>
+            <button
+              onClick={manejarLimpiarProductos}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              title="Eliminar todos los productos de prueba"
+            >
+              🧹 Limpiar Productos
             </button>
             <button
               onClick={onClose}
