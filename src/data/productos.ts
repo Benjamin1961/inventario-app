@@ -153,3 +153,29 @@ export const eliminarImagen = async (imagePath: string): Promise<boolean> => {
     return false;
   }
 };
+
+// Función para limpiar todos los productos (útil para administradores)
+export const limpiarTodosLosProductos = async (): Promise<boolean> => {
+  try {
+    // Primero obtener todos los productos para eliminar sus imágenes
+    const productos = await obtenerTodosLosProductos();
+    
+    // Eliminar todas las imágenes asociadas
+    for (const producto of productos) {
+      if (producto.imagePath) {
+        await eliminarImagen(producto.imagePath);
+      }
+    }
+
+    // Eliminar todos los productos de la base de datos
+    const { error } = await supabase
+      .from('productos')
+      .delete()
+      .neq('id', 0); // Eliminar todos (neq con un valor que no existe elimina todo)
+
+    return !error;
+  } catch (error) {
+    console.error('Error limpiando productos:', error);
+    return false;
+  }
+};

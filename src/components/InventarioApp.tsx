@@ -6,8 +6,10 @@ import { obtenerTodosLosProductos, buscarPorCodigo, generarReportePorMeses, agre
 import FormularioProducto from './FormularioProducto';
 import ImportarExcel from './ImportarExcel';
 import EditarProducto from './EditarProducto';
+import PanelUsuarios from './PanelUsuarios';
+import CambioPassword from './CambioPassword';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Package, FileText, Filter, Plus, Upload, Edit, LogOut, User } from 'lucide-react';
+import { Search, Package, FileText, Filter, Plus, Upload, Edit, LogOut, User, Users } from 'lucide-react';
 
 export default function InventarioApp() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -20,6 +22,7 @@ export default function InventarioApp() {
   const [mostrarImportarExcel, setMostrarImportarExcel] = useState(false);
   const [mostrarEditarProducto, setMostrarEditarProducto] = useState(false);
   const [productoAEditar, setProductoAEditar] = useState<Producto | null>(null);
+  const [mostrarPanelUsuarios, setMostrarPanelUsuarios] = useState(false);
   const [cargando, setCargando] = useState(true);
   
   const { usuario, logout } = useAuth();
@@ -219,6 +222,16 @@ export default function InventarioApp() {
                   <Upload className="h-4 w-4" />
                   Importar Excel
                 </button>
+                
+                {usuario?.rol === 'admin' && (
+                  <button
+                    onClick={() => setMostrarPanelUsuarios(true)}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Users className="h-4 w-4" />
+                    Usuarios
+                  </button>
+                )}
                 
                 <button
                   onClick={limpiarFiltros}
@@ -475,6 +488,20 @@ export default function InventarioApp() {
         onCerrar={cerrarEditorProducto}
         mostrar={mostrarEditarProducto}
       />
+
+      {/* Panel de Usuarios (solo para administradores) */}
+      {mostrarPanelUsuarios && (
+        <PanelUsuarios
+          onClose={() => setMostrarPanelUsuarios(false)}
+        />
+      )}
+
+      {/* Cambio de Contraseña Obligatorio */}
+      {usuario?.requiere_cambio_password && (
+        <CambioPassword
+          onPasswordCambiada={() => window.location.reload()}
+        />
+      )}
     </div>
   );
 }

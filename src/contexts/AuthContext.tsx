@@ -1,13 +1,15 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { autenticarUsuario, type Usuario as UsuarioCompleto } from '../data/usuarios';
 
-// Definir tipos para usuarios y autenticación
+// Definir tipos para usuarios y autenticación (versión simplificada para el contexto)
 export interface Usuario {
   id: string;
   nombre: string;
   email: string;
   rol: 'admin' | 'usuario';
+  requiere_cambio_password?: boolean;
 }
 
 interface AuthContextType {
@@ -17,50 +19,6 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
 }
-
-// Usuarios predefinidos (en producción esto estaría en una base de datos)
-const USUARIOS_PREDEFINIDOS: { email: string; password: string; usuario: Usuario }[] = [
-  {
-    email: 'admin@inventario.com',
-    password: 'admin123',
-    usuario: {
-      id: '1',
-      nombre: 'Administrador',
-      email: 'admin@inventario.com',
-      rol: 'admin'
-    }
-  },
-  {
-    email: 'usuario1@inventario.com',
-    password: 'user123',
-    usuario: {
-      id: '2',
-      nombre: 'Usuario Uno',
-      email: 'usuario1@inventario.com',
-      rol: 'usuario'
-    }
-  },
-  {
-    email: 'usuario2@inventario.com',
-    password: 'user123',
-    usuario: {
-      id: '3',
-      nombre: 'Usuario Dos',
-      email: 'usuario2@inventario.com',
-      rol: 'usuario'
-    }
-  },
-  {
-    email: 'usuario3@inventario.com',
-    password: 'user123',
-    usuario: {
-      id: '4',
-      nombre: 'Usuario Tres',
-      email: 'usuario3@inventario.com',
-      rol: 'usuario'
-    }
-  }
-];
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -98,22 +56,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simular delay de autenticación (como una API real)
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const usuarioEncontrado = USUARIOS_PREDEFINIDOS.find(
-      u => u.email === email && u.password === password
-    );
-
-    if (usuarioEncontrado) {
-      setUsuario(usuarioEncontrado.usuario);
-      localStorage.setItem('inventario_usuario', JSON.stringify(usuarioEncontrado.usuario));
+    try {
+      const usuarioAutenticado = await autenticarUsuario(email, password);
+      
+      if (usuarioAutenticado) {
+        // Convertir el usuario completo a la versión simplificada para el contexto
+        const usuarioSimplificado: Usuario = {
+          id: usuarioAutenticado.id,
+          nombre: usuarioAutenticado.nombre,
+          email: usuarioAutenticado.email,
+          rol: usuarioAutenticado.rol,
+          requiere_cambio_password: usuarioAutenticado.debe_cambiar_password
+        };
+        
+        setUsuario(usuarioSimplificado);
+        localStorage.setItem('inventario_usuario', JSON.stringify(usuarioSimplificado));
+        setIsLoading(false);
+        return true;
+      }
+      
       setIsLoading(false);
-      return true;
+      return false;
+    } catch (error) {
+      console.error('Error en autenticación:', error);
+      setIsLoading(false);
+      return false;
     }
-
-    setIsLoading(false);
-    return false;
   };
 
   const logout = () => {
