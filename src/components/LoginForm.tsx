@@ -27,10 +27,7 @@ export default function LoginForm() {
   };
 
   const credencialesPrueba = [
-    { email: 'admin@inventario.com', password: 'admin123', rol: 'Administrador' },
-    { email: 'usuario1@inventario.com', password: 'user123', rol: 'Usuario' },
-    { email: 'usuario2@inventario.com', password: 'user123', rol: 'Usuario' },
-    { email: 'usuario3@inventario.com', password: 'user123', rol: 'Usuario' },
+    { email: 'admin@almacen.cr', password: 'Admin2024!', rol: 'Administrador' },
   ];
 
   const completarCredenciales = (email: string, password: string) => {
@@ -125,9 +122,9 @@ export default function LoginForm() {
           </button>
         </form>
 
-        {/* Credenciales de prueba */}
+        {/* Credenciales del sistema */}
         <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">👥 Usuarios de prueba:</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">� Administrador inicial:</h3>
           <div className="space-y-2">
             {credencialesPrueba.map((cred, index) => (
               <div
@@ -145,9 +142,14 @@ export default function LoginForm() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-3 text-center">
-            Haz clic en cualquier usuario para autocompletar las credenciales
-          </p>
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-700">
+              <strong>⚡ Sistema Profesional:</strong><br/>
+              • Dominio: @almacen.cr<br/>
+              • Primera vez: cambiar contraseña<br/>
+              • Gestión completa de usuarios
+            </p>
+          </div>
         </div>
       </div>
     </div>
