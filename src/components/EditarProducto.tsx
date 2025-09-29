@@ -163,7 +163,7 @@ export default function EditarProducto({ producto, onGuardar, onCerrar, mostrar 
           // Subir nueva imagen
           const rutaImagen = await subirImagen(imagenSeleccionada, formData.codigo);
           if (rutaImagen) {
-            productoFinal.imagePath = rutaImagen;
+            productoFinal = { ...productoFinal, imagePath: rutaImagen };
           }
         }
 
